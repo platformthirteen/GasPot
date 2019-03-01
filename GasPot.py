@@ -12,6 +12,7 @@
 
 import socket
 import select
+import time
 import datetime
 import random
 import ConfigParser
@@ -111,6 +112,17 @@ temp4 = str(random.randint(low_temp, high_temp)) + DS + str(random.randint(10, 9
 station_name = ast.literal_eval(config.get("stations", "list"))
 slength = len(station_name)
 station = station_name[random.randint(0, slength-1)]
+
+def i20100():
+    i20100_1 = [
+        chr(1),
+        'i20100',
+        '19012613200110000074589F000458BA80044DC8000423FDE61000000004229331800000000021000007458B7800458D300044D660004241BD18000000004228DE7A0000000003300000744EDC00044EF80004585A00041C62DA6000000004244C93C00000000044000007448520004485A0004534D00041B4309900000000424B533000000000055000007449540004496200044688000421CD37F0000000042380C3200000000',
+        '&&',
+        'BA5E',
+        chr(3)
+    ]
+    return i20100_1
 
 # This function is to set-up up the message to be sent upon a successful I20100 command being sent
 # The final message is sent with a current date/time stamp inside of the main loop.
@@ -313,12 +325,29 @@ while True:
                     active_sockets.remove(conn)
                     continue
 
-                cmds = {"I20100" : I20100, "I20200" : I20200, "I20300" : I20300 , "I20400" : I20400, "I20500" : I20500}
+                cmds = {
+                    "i20100" : i20100,
+                    "I20100" : I20100,
+                    "I20200" : I20200,
+                    "I20300" : I20300,
+                    "I20400" : I20400,
+                    "I20500" : I20500
+                }
                 cmd = response[1:7] # strip ^A and \n out
 
                 if cmd in cmds:
                     log("Handling %s Command Attempt from: %s\n" % (cmd, addr[0]), log_destinations)
-                    conn.send(cmds[cmd]())
+                    # conn.send(cmds[cmd]())
+                    msg = cmds[cmd]()
+                    totalsent = 0
+                    while totalsent < len(msg):
+                        to_send = msg[totalsent]
+                        time.sleep(.01)
+                        sent = conn.send(to_send)
+                        log(to_send + "\n", log_destinations)
+                        if sent == 0:
+                            raise RuntimeError("socket connection broken")
+                        totalsent = totalsent + 1
                 elif cmd.startswith("S6020"):
                     # change the tank name
                     if cmd.startswith("S60201"):
